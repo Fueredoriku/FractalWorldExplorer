@@ -16,6 +16,36 @@ uniform layout(location = 3) vec3 camera;
 
 out vec4 color;
 
+// *Constants*
+const float maxDist = 50.;
+
+// *Shading*
+// Ambient
+vec3 materialColor = vec3(clamp(0.4+cos(iTime), 0.31, 1.),0.4,clamp(0.4+sin(iTime),0.4,0.7));
+// Specular
+float shinyness = 16.;
+
+// *VFX*
+// Ambient Occlusion
+float ambientOcclusionIntensity = 0.5;
+
+// Fog
+vec3 fogColor = vec3(0.55, 0.7, 0.82);
+float fogDistance = 40.; 
+
+
+//* Fractal tweakables*
+// How many times to fold the sponge (mirrors geometry, improves fractal "resolution")
+int mirrors = 4;
+// Rotates the entire object
+vec3 rotationOffsetDegrees = vec3(0., 0., 0.);
+// Rotates the fractal itself in each fold around the given axis
+vec3 fractalFoldingRotationOffset = vec3(0., iTime, 0.);
+
+// TODO: noise for heigth
+
+// TODO: noise for rotations
+
 //////////////////////////////////////////////
 // *Region* 
 // Util Functions
@@ -56,29 +86,25 @@ mat3 rotateZ(float rotationDegrees)
 //////////////////////////////////////////////
 
 float signedDistanceSponge(vec3 position) {
-    float scale = 1.;
+    float scaleAccumulated = 1.;
     vec3 size =  vec3(1.,1.,1.);
     position += vec3(-1., 1.,-1.);
     
-    // How many times to fold the sponge
-    int folds = 4;
-    
-
     position /= 4.;
     
     // Repeat pattern along z axis
-    position.z = 1.-mod(position.z, 2.);
+    position.x = 1.-mod(position.x, 4.);
+    position.z = 1.-mod(position.z, 4.);
     
     
-    for(int i=0; i<folds; i++) {
-        scale *= 3.8;
+    for(int i=0; i<mirrors; i++) {
+        scaleAccumulated *= 3.8;
         position *= 4.0;
         
-        //position *= rotateX(1.);
-        //position *= rotateY(1.5);
-        //position *= rotateZ(1.);
+        // Rotate the entire object
+        position *= rotateX(rotationOffsetDegrees.x) * rotateY(rotationOffsetDegrees.y) * rotateZ(rotationOffsetDegrees.z);
         
-        
+        // Makes a cube and mirrors it
         float dist = dot(position+1., normalize(vec3(1., 0., 0)));
         position -= 2.*normalize(vec3(1.,0.05,0.))*min(0., dist);
 
@@ -102,14 +128,14 @@ float signedDistanceSponge(vec3 position) {
         dist = dot(position, normalize(vec3(0.15, -1., 0))) + 0.5;
         position -= 2.*normalize(vec3(0.,-1.,0.))*min(0., dist);
         
-        position *= rotateY(iTime);
-        //position *= rotateX(iTime);
+        // Gives the fractal a rotational offset for each folding, achieving a "Kaleidoscopic IFS" effect
+        position *= rotateX(fractalFoldingRotationOffset.x) * rotateY(fractalFoldingRotationOffset.y) * rotateY(fractalFoldingRotationOffset.z);
    
     }
     
     float d = length(max(abs(position) - size, 0.));
     
-    return d/scale;
+    return d/scaleAccumulated;
 }
 
 //////////////////////////////////////////////
@@ -193,7 +219,6 @@ float diffuseIntensity(vec3 position, vec3 normal, vec3 lightPosition)
 
 float specularIntensity(vec3 position, vec3 normal, vec3 lightPosition)
 {
-    float shinyness = 16.;
     vec3 lightDir = normalize(position - lightPosition);
     
     return pow(max(dot(normalize(lightDir), normal)*shadow(position, lightDir), 0.5), shinyness);
@@ -206,12 +231,22 @@ vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition)
 
 // VFX
 
+// Fog (Applies fog to given caler based on distance from camera)
+vec3 applyFog(vec3 color, vec3 position, vec3 cameraPosition)
+{
+    float dist = distance(position, cameraPosition);
+    if (dist > fogDistance)
+    {
+        color = mix(color, fogColor, (dist-fogDistance)/(maxDist-max(fogDistance,0.001)));
+    }
+    return color; 
+}
+
 // Ambient Occlusion sampler
 vec3 ambientOcclusion(vec3 position, vec3 normalDirection)
 {
     vec4 ambience = vec4(0.);
     float scale = 1.;
-    float intensity = 0.5;
     
     // Sample 5 rays, rays travel along normalDirection.
     for (int rays = 0; rays < 5; rays++)
@@ -224,7 +259,7 @@ vec3 ambientOcclusion(vec3 position, vec3 normalDirection)
         //Reduce scale for next ray
         scale *= 0.75;
     }
-    ambience.w = 1. - clamp(intensity*ambience.w, 0.0, 0.1);
+    ambience.w = 1. - clamp(ambientOcclusionIntensity*ambience.w, 0.0, 0.1);
     
     //Bake intensity into ambience:
     ambience.xyz * ambience.w;
@@ -251,7 +286,7 @@ vec3 march(vec3 camPos, vec3 camDir)
         currentPos += d*camDir;
         steps++;
 
-    } while (steps < 200 && d > 0.001 && distance(camPos, currentPos) < 50.);
+    } while (steps < 200 && d > 0.001 && distance(camPos, currentPos) < maxDist);
 
     
     return currentPos;
@@ -275,10 +310,16 @@ void main()
     vec3 position = march(camPos, camDir);
     
     // TODO: pass this value from marcher instead?
+    // TODO: move to marcher as color draw and make marcher return color for fragment instead of pos.
     // Background
     if (distance(position, camPos) > 50.)
     {
-        color = vec4(0.6,0.2,0.75+uv.y, 1.);
+        color = vec4(fogColor, 1.);
+        if (uv.y > 0.7)
+        {
+            //lerp to sky?
+        }
+        //color = vec4(0.6,0.2,0.75+uv.y, 1.);
         return;
     }
     
@@ -293,9 +334,10 @@ void main()
     //vec3 col = normalOut;
     
     // Phong: ambient + diffuse + specular      
-    vec3 col = phong(position, normalOut, vec3(clamp(0.4+cos(iTime), 0.31, 1.),0.4,clamp(0.4+sin(iTime),0.4,0.7)), lightPosition); 
+    vec3 col = phong(position, normalOut, materialColor, lightPosition); 
     // Add VFX
     col -= ambientOcclusion(position, normalOut);
+    col = applyFog(col, position, camPos);
     // Output to screen
     color = vec4(col,1.0);
 }
