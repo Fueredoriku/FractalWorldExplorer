@@ -6,9 +6,6 @@
 #include <glm/vec3.hpp>
 #include <iostream>
 #include <utilities/timeutils.h>
-//#include <utilities/mesh.h>
-//#include <utilities/shapes.h>
-//#include <utilities/glutils.h>
 #include <SFML/Audio/Sound.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -217,7 +214,7 @@ void updateFrame(GLFWwindow* window) {
 
     // Send camera updates to fragment shader
     glm::vec3 cameraPosition = glm::vec3(0, 0, -4.5f+2*gameElapsedTime);
-    glUniform3fv(8,1, glm::value_ptr(cameraPosition));
+    glUniform3fv(3,1, glm::value_ptr(cameraPosition));
 }
 
 void renderFrame(GLFWwindow* window) {

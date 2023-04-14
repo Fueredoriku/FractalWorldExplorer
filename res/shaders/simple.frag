@@ -1,18 +1,15 @@
 #version 430 core
 
-//in layout(location = 0) vec3 normal; // must be normalized
 in vec2 uv;
 uniform layout(location = 1) vec2 iResolution;
 uniform layout(location = 2) float iTime;
-//in layout(location = 2) vec3 position; // in model space
 
 struct LightSource {
     vec3 position;
     vec3 color;
 };
 
-//in layout(location = 8) vec3 ball;
-uniform layout(location = 8) vec3 camera;
+uniform layout(location = 3) vec3 camera;
 //uniform layout(location = 10) int numLights;
 //uniform LightSource lights[4];
 
