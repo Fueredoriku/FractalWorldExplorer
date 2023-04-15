@@ -21,7 +21,9 @@ const float maxDist = 50.;
 
 // *Shading*
 // Ambient
-vec3 materialColor = vec3(clamp(0.4+cos(iTime), 0.31, 1.),0.4,clamp(0.4+sin(iTime),0.4,0.7));
+//vec3 materialColor = vec3(clamp(0.4+cos(iTime), 0.31, 1.),0.4,clamp(0.4+sin(iTime),0.4,0.7));
+vec3 materialColor = vec3(0.6,0.2,0.1);
+
 // Specular
 float shinyness = 16.;
 
@@ -40,7 +42,7 @@ int mirrors = 4;
 // Rotates the entire object
 vec3 rotationOffsetDegrees = vec3(0., 0., 0.);
 // Rotates the fractal itself in each fold around the given axis
-vec3 fractalFoldingRotationOffset = vec3(0., iTime, 0.);
+vec3 fractalFoldingRotationOffset = vec3(0.3, 0., 0.);
 
 // TODO: noise for heigth
 
@@ -80,29 +82,58 @@ mat3 rotateZ(float rotationDegrees)
     );
 }
 
+float deterministicRandom (vec2 position) {
+    return fract(sin(dot(position,
+                         vec2(12.9898,78.233)))*
+        43758.5453123);
+}
+
+/*
+float perlinNoice(float value)
+{
+    float integer = floor(value);
+    float fraction = fract(value);
+    //y = rand(i); //rand() is described in the previous chapter
+    //y = mix(rand(i), rand(i + 1.0), f);
+    return mix(deterministicRandom(integer), deterministicRandom(integer + 1.0), smoothstep(0.,1.,fraction)); 
+}
+*/
+
+
 //////////////////////////////////////////////
 // *Region* 
 // Signed Distance Functions
 //////////////////////////////////////////////
 
+// Source: https://iquilezles.org/articles/distfunctions/
+float sdPlane( vec3 position, vec4 normalFromOrigin)
+{
+  // n must be normalized
+  return dot(position,normalFromOrigin.xyz) + normalFromOrigin.w;
+}  
+
+float signedDistancePlane(vec3 position)
+{
+	return position.y + mod(position.x,2.)*mod(position.z,2.);
+}
+
+
 float signedDistanceSponge(vec3 position) {
+    float randomFactor = deterministicRandom(floor(position.xz/2.));
+    // Repeat points on the XY-plane
+    position = vec3(mod(position.x,2.)-1., position.y+randomFactor, mod(position.z,2.)-1.);
+    // Rotate the entire object
+    position *= rotateX(rotationOffsetDegrees.x) * rotateY(rotationOffsetDegrees.y) * rotateZ(rotationOffsetDegrees.z);
     float scaleAccumulated = 1.;
     vec3 size =  vec3(1.,1.,1.);
     position += vec3(-1., 1.,-1.);
-    
     position /= 4.;
     
-    // Repeat pattern along z axis
-    position.x = 1.-mod(position.x, 4.);
-    position.z = 1.-mod(position.z, 4.);
-    
+
     
     for(int i=0; i<mirrors; i++) {
         scaleAccumulated *= 3.8;
         position *= 4.0;
-        
-        // Rotate the entire object
-        position *= rotateX(rotationOffsetDegrees.x) * rotateY(rotationOffsetDegrees.y) * rotateZ(rotationOffsetDegrees.z);
         
         // Makes a cube and mirrors it
         float dist = dot(position+1., normalize(vec3(1., 0., 0)));
@@ -130,9 +161,11 @@ float signedDistanceSponge(vec3 position) {
         
         // Gives the fractal a rotational offset for each folding, achieving a "Kaleidoscopic IFS" effect
         position *= rotateX(fractalFoldingRotationOffset.x) * rotateY(fractalFoldingRotationOffset.y) * rotateY(fractalFoldingRotationOffset.z);
+        // Noise based rotational offset
+        position *= rotateX(randomFactor) * rotateY(0.) * rotateY(0.);
    
     }
-    
+
     float d = length(max(abs(position) - size, 0.));
     
     return d/scaleAccumulated;
@@ -157,8 +190,7 @@ float map(vec3 pos)
     //Return a sphere at origo
     //return length(pos)-1.0;
     
-    //return signedDistanceSponge(vec3(mod(pos.x,7.)-2., pos.y, mod(pos.z,2.)-2.));
-    return signedDistanceSponge(pos);
+    return min(signedDistanceSponge(pos), signedDistancePlane(pos));
 }
 
 vec3 normal(vec3 position)
@@ -207,26 +239,49 @@ float shadow(vec3 position, vec3 lightDirection)
     return clamp(shadow, 0.1, 1.0);
 }
 
+
+float calcGlobalLighting(vec3 position, vec3 normal, vec3 rayDirection)
+{
+    vec3  lightPosition = normalize( vec3(-0.5, 0.4, -0.6) );
+    vec3  hal = normalize( lightPosition-rayDirection );
+    float dif = clamp( dot( normal, lightPosition ), 0.0, 1.0 );
+    //if( dif>0.0001 )
+    /*
+    dif *= calcSoftshadow( pos, lightPosition, 0.02, 2.5 );
+	float spe = pow( clamp( dot( normal, hal ), 0.0, 1.0 ),16.0);
+    spe *= dif;
+    spe *= 0.04+0.96*pow(clamp(1.0-dot(hal,lightPosition),0.0,1.0),5.0);
+    spe *= 0.04+0.96*pow(clamp(1.0-sqrt(0.5*(1.0-dot(rayDirection,lightPosition))),0.0,1.0),5.0);
+    lin += col*2.20*dif*vec3(1.30,1.00,0.70);
+    lin += 5.00*spe*vec3(1.30,1.00,0.70)*ks;
+    */
+    return dif;
+}
+
 // Phong
 
-float diffuseIntensity(vec3 position, vec3 normal, vec3 lightPosition)
+float diffuseIntensity(vec3 position, vec3 normal, vec3 lightDirection)
 {
-    vec3 lightDir = normalize(position - lightPosition);
-
     //Return the diffuseIntensity for the given position, normal and lightsource:
-    return max(0.0, dot(normal, lightDir)*shadow(position, lightDir));
+    return max(0.0, dot(normal, lightDirection));
+    //return max(0.0, dot(normal, lightDir));
 }
 
-float specularIntensity(vec3 position, vec3 normal, vec3 lightPosition)
+float specularIntensity(vec3 position, vec3 normal, vec3 lightDirection)
 {
-    vec3 lightDir = normalize(position - lightPosition);
-    
-    return pow(max(dot(normalize(lightDir), normal)*shadow(position, lightDir), 0.5), shinyness);
+    //return pow(max(dot(normalize(lightDir), normal)*shadow(position, lightDir), 0.5), shinyness);
+    return pow(max(dot(normalize(lightDirection), normal), 0.5), shinyness);
 }
 
-vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition)
+vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition, vec3 rayDirection)
 {
-    return ambientColor*(diffuseIntensity(position, normal, lightPosition)+specularIntensity(position, normal, lightPosition));
+    vec3 lightDirection = normalize(position - lightPosition);
+    vec3 color = vec3(0.);
+    float gradient = calcGlobalLighting(position, normal, rayDirection)*shadow(position, lightDirection);
+    color += specularIntensity(position, normal, lightPosition)*gradient + ambientColor*4.2*(diffuseIntensity(position, normal, lightDirection)*gradient);
+    return color;
+
+    //return ambientColor*(diffuseIntensity(position, normal, lightPosition)+specularIntensity(position, normal, lightPosition));
 }
 
 // VFX
@@ -237,7 +292,7 @@ vec3 applyFog(vec3 color, vec3 position, vec3 cameraPosition)
     float dist = distance(position, cameraPosition);
     if (dist > fogDistance)
     {
-        color = mix(color, fogColor, (dist-fogDistance)/(maxDist-max(fogDistance,0.001)));
+        color = mix(color, fogColor, exp(-0.2*(dist-fogDistance)/(maxDist-max(fogDistance,0.001))));
     }
     return color; 
 }
@@ -307,6 +362,7 @@ void main()
 
     vec3 camPos = camera;
     vec3 camDir = vec3(uv, 1.);
+    //camDir *= rotateY(iTime);
     vec3 position = march(camPos, camDir);
     
     // TODO: pass this value from marcher instead?
@@ -315,8 +371,11 @@ void main()
     if (distance(position, camPos) > 50.)
     {
         color = vec4(fogColor, 1.);
-        if (uv.y > 0.7)
+
+        //keep the fog low, lerp to sky
+        if (uv.y > 0.2)
         {
+            color = mix(vec4(fogColor, 1.), vec4(0.6,0.2,0.75, 1.), (uv.y-0.2)/(1.-0.2) );
             //lerp to sky?
         }
         //color = vec4(0.6,0.2,0.75+uv.y, 1.);
@@ -325,7 +384,8 @@ void main()
     
     vec3 normalOut = normal(position);
     
-    vec3 lightPosition = vec3(2.0, .0, 5.0+2.*iTime);
+    vec3 lightPosition = vec3(0., -5.0, 1.0+2.*iTime);
+    vec3 lightDirection = normalize(vec3(-25.,-25.,1.));
 
     // Black/white gradiant as distance
     //vec3 col = vec3(distance(camPos, position)/10.);
@@ -334,7 +394,8 @@ void main()
     //vec3 col = normalOut;
     
     // Phong: ambient + diffuse + specular      
-    vec3 col = phong(position, normalOut, materialColor, lightPosition); 
+    vec3 col = phong(position, normalOut, materialColor, lightPosition, camDir  ); 
+    //col *= calcGlobalLighting(position, normalOut, camDir); 
     // Add VFX
     col -= ambientOcclusion(position, normalOut);
     col = applyFog(col, position, camPos);

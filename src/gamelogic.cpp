@@ -213,7 +213,7 @@ void updateFrame(GLFWwindow* window) {
     }
 
     // Send camera updates to fragment shader
-    glm::vec3 cameraPosition = glm::vec3(0, 0, -4.5f+2*gameElapsedTime);
+    glm::vec3 cameraPosition = glm::vec3(0., 3., -6.f+2*gameElapsedTime);
     glUniform3fv(3,1, glm::value_ptr(cameraPosition));
 }
 
