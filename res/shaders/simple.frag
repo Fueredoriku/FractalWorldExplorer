@@ -13,7 +13,6 @@ uniform layout(location = 3) vec3 camera;
 //uniform layout(location = 10) int numLights;
 //uniform LightSource lights[4];
 
-
 out vec4 color;
 
 // *Constants*
@@ -38,11 +37,17 @@ float fogDistance = 40.;
 
 //* Fractal tweakables*
 // How many times to fold the sponge (mirrors geometry, improves fractal "resolution")
-int mirrors = 4;
+uniform layout(location = 4) int mirrors;
 // Rotates the entire object
 vec3 rotationOffsetDegrees = vec3(0., 0., 0.);
 // Rotates the fractal itself in each fold around the given axis
-vec3 fractalFoldingRotationOffset = vec3(0.3, 0., 0.);
+uniform layout(location = 5) float degX;
+uniform layout(location = 6) float degY;
+uniform layout(location = 7) float degZ;
+uniform layout(location = 8) int enableTimeOffset;
+uniform layout(location = 9) float periodL;
+float period = 2; 
+vec3 fractalFoldingRotationOffset = vec3(degX, degY, degZ);
 
 // TODO: noise for heigth
 
@@ -121,7 +126,7 @@ float signedDistancePlane(vec3 position)
 float signedDistanceSponge(vec3 position) {
     float randomFactor = deterministicRandom(floor(position.xz/2.));
     // Repeat points on the XY-plane
-    position = vec3(mod(position.x,2.)-1., position.y+randomFactor, mod(position.z,2.)-1.);
+    position = vec3(mod(position.x,period)-(period/2.), position.y+randomFactor, mod(position.z,period)-(period/2.));
     // Rotate the entire object
     position *= rotateX(rotationOffsetDegrees.x) * rotateY(rotationOffsetDegrees.y) * rotateZ(rotationOffsetDegrees.z);
     float scaleAccumulated = 1.;
@@ -160,7 +165,14 @@ float signedDistanceSponge(vec3 position) {
         position -= 2.*normalize(vec3(0.,-1.,0.))*min(0., dist);
         
         // Gives the fractal a rotational offset for each folding, achieving a "Kaleidoscopic IFS" effect
-        position *= rotateX(fractalFoldingRotationOffset.x) * rotateY(fractalFoldingRotationOffset.y) * rotateY(fractalFoldingRotationOffset.z);
+        if (enableTimeOffset != 0)
+        {
+            position *= rotateX(fractalFoldingRotationOffset.x*iTime*0.1) * rotateY(fractalFoldingRotationOffset.y*iTime*0.1) * rotateY(fractalFoldingRotationOffset.z*iTime*0.1);
+        }
+        else 
+        {
+            position *= rotateX(fractalFoldingRotationOffset.x) * rotateY(fractalFoldingRotationOffset.y) * rotateY(fractalFoldingRotationOffset.z);
+        }
         // Noise based rotational offset
         position *= rotateX(randomFactor) * rotateY(0.) * rotateY(0.);
    
@@ -189,8 +201,8 @@ float map(vec3 pos)
     
     //Return a sphere at origo
     //return length(pos)-1.0;
-    
-    return min(signedDistanceSponge(pos), signedDistancePlane(pos));
+    return signedDistanceSponge(pos);
+    //return min(signedDistanceSponge(pos), signedDistancePlane(pos));
 }
 
 vec3 normal(vec3 position)
@@ -239,64 +251,6 @@ float shadow(vec3 position, vec3 lightDirection)
     return clamp(shadow, 0.1, 1.0);
 }
 
-
-float calcGlobalLighting(vec3 position, vec3 normal, vec3 rayDirection)
-{
-    vec3  lightPosition = normalize( vec3(-0.5, 0.4, -0.6) );
-    vec3  hal = normalize( lightPosition-rayDirection );
-    float dif = clamp( dot( normal, lightPosition ), 0.0, 1.0 );
-    //if( dif>0.0001 )
-    /*
-    dif *= calcSoftshadow( pos, lightPosition, 0.02, 2.5 );
-	float spe = pow( clamp( dot( normal, hal ), 0.0, 1.0 ),16.0);
-    spe *= dif;
-    spe *= 0.04+0.96*pow(clamp(1.0-dot(hal,lightPosition),0.0,1.0),5.0);
-    spe *= 0.04+0.96*pow(clamp(1.0-sqrt(0.5*(1.0-dot(rayDirection,lightPosition))),0.0,1.0),5.0);
-    lin += col*2.20*dif*vec3(1.30,1.00,0.70);
-    lin += 5.00*spe*vec3(1.30,1.00,0.70)*ks;
-    */
-    return dif;
-}
-
-// Phong
-
-float diffuseIntensity(vec3 position, vec3 normal, vec3 lightDirection)
-{
-    //Return the diffuseIntensity for the given position, normal and lightsource:
-    return max(0.0, dot(normal, lightDirection));
-    //return max(0.0, dot(normal, lightDir));
-}
-
-float specularIntensity(vec3 position, vec3 normal, vec3 lightDirection)
-{
-    //return pow(max(dot(normalize(lightDir), normal)*shadow(position, lightDir), 0.5), shinyness);
-    return pow(max(dot(normalize(lightDirection), normal), 0.5), shinyness);
-}
-
-vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition, vec3 rayDirection)
-{
-    vec3 lightDirection = normalize(position - lightPosition);
-    vec3 color = vec3(0.);
-    float gradient = calcGlobalLighting(position, normal, rayDirection)*shadow(position, lightDirection);
-    color += specularIntensity(position, normal, lightPosition)*gradient + ambientColor*4.2*(diffuseIntensity(position, normal, lightDirection)*gradient);
-    return color;
-
-    //return ambientColor*(diffuseIntensity(position, normal, lightPosition)+specularIntensity(position, normal, lightPosition));
-}
-
-// VFX
-
-// Fog (Applies fog to given caler based on distance from camera)
-vec3 applyFog(vec3 color, vec3 position, vec3 cameraPosition)
-{
-    float dist = distance(position, cameraPosition);
-    if (dist > fogDistance)
-    {
-        color = mix(color, fogColor, exp(-0.2*(dist-fogDistance)/(maxDist-max(fogDistance,0.001))));
-    }
-    return color; 
-}
-
 // Ambient Occlusion sampler
 vec3 ambientOcclusion(vec3 position, vec3 normalDirection)
 {
@@ -320,6 +274,55 @@ vec3 ambientOcclusion(vec3 position, vec3 normalDirection)
     ambience.xyz * ambience.w;
     
     return ambience.xyz; 
+}
+
+
+float sunDirection(vec3 position, vec3 normal, vec3 rayDirection)
+{
+    vec3  lightPosition = normalize( vec3(-0.5, 15., -0.6));
+    vec3  hal = normalize( lightPosition-rayDirection );
+    float dif = clamp( dot(normal, lightPosition ), 0., 1.0 );
+    return dif;
+}
+
+// Phong
+
+float diffuseIntensity(vec3 position, vec3 normal, vec3 lightDirection)
+{
+    //Return the diffuseIntensity for the given position, normal and lightsource:
+    return max(0.0, dot(normal, lightDirection));
+    //return max(0.0, dot(normal, lightDir));
+}
+
+float specularIntensity(vec3 position, vec3 normal, vec3 lightDirection)
+{
+    //return pow(max(dot(normalize(lightDir), normal)*shadow(position, lightDir), 0.5), shinyness);
+    return pow(max(dot(normalize(lightDirection), normal), 0.5), shinyness);
+}
+
+vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition)
+{
+    vec3 lightDirection = normalize(position - lightPosition);
+    vec3 color = ambientColor*ambientOcclusion(position, normal)*1.2;
+    //float gradient = calcGlobalLighting(position, normal, rayDirection)*shadow(position, lightDirection);
+    color += specularIntensity(normalize(position), normalize(normal), lightDirection)+ ambientColor*(diffuseIntensity(normalize(position), normalize(normal), lightDirection));
+    //color += specularIntensity(position, normal, sunDirection)+ ambientColor*(diffuseIntensity(position, normal, sunDirection));
+    return clamp(color, 0.,1.);
+
+    //return ambientColor*(diffuseIntensity(position, normal, lightPosition)+specularIntensity(position, normal, lightPosition));
+}
+
+// VFX
+
+// Fog (Applies fog to given caler based on distance from camera)
+vec3 applyFog(vec3 color, vec3 position, vec3 cameraPosition)
+{
+    float dist = distance(position, cameraPosition);
+    if (dist > fogDistance)
+    {
+        color = mix(color, fogColor, exp(-0.2*(dist-fogDistance)/(maxDist-max(fogDistance,0.001))));
+    }
+    return color; 
 }
 
 
@@ -362,7 +365,8 @@ void main()
 
     vec3 camPos = camera;
     vec3 camDir = vec3(uv, 1.);
-    //camDir *= rotateY(iTime);
+    camDir *= rotateX(0.1);
+    vec3 lightPosition = vec3(0., -5.0, 5.0+2.*iTime);
     vec3 position = march(camPos, camDir);
     
     // TODO: pass this value from marcher instead?
@@ -383,9 +387,6 @@ void main()
     }
     
     vec3 normalOut = normal(position);
-    
-    vec3 lightPosition = vec3(0., -5.0, 1.0+2.*iTime);
-    vec3 lightDirection = normalize(vec3(-25.,-25.,1.));
 
     // Black/white gradiant as distance
     //vec3 col = vec3(distance(camPos, position)/10.);
@@ -394,10 +395,9 @@ void main()
     //vec3 col = normalOut;
     
     // Phong: ambient + diffuse + specular      
-    vec3 col = phong(position, normalOut, materialColor, lightPosition, camDir  ); 
+    vec3 col = phong(position, normalOut, materialColor, lightPosition); 
     //col *= calcGlobalLighting(position, normalOut, camDir); 
     // Add VFX
-    col -= ambientOcclusion(position, normalOut);
     col = applyFog(col, position, camPos);
     // Output to screen
     color = vec4(col,1.0);

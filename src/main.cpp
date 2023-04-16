@@ -66,10 +66,16 @@ GLFWwindow* initialise()
 
 int main(int argc, const char* argb[])
 {
-    arrrgh::parser parser("glowbox", "Small breakout like juggling game");
-    const auto& showHelp       = parser.add<bool>("help", "Show this help message.", 'h', arrrgh::Optional, false);
-    const auto& enableMusic    = parser.add<bool>("enable-music", "Play background music while the game is playing", 'm', arrrgh::Optional, false);
-    const auto& enableAutoplay = parser.add<bool>("autoplay", "Let the game play itself automatically. Useful for testing.", 'a', arrrgh::Optional, false);
+    arrrgh::parser parser("fractalWorldExplorer", "A fractal explorer where you can tweak world generation");
+    const auto& showHelp         = parser.add<bool>("help", "Show this help message.", 'h', arrrgh::Optional, false);
+    const auto& enableMusic      = parser.add<bool>("enable-music", "Play background music while the game is playing", 'm', arrrgh::Optional, false);
+    const auto& enableAutoplay   = parser.add<bool>("autoplay", "Let the game play itself automatically. Useful for testing.", 'a', arrrgh::Optional, false);
+    const auto& mirrorFractal    = parser.add<int>("fractal-mirror", "Increase the amount of times fractal is mirWrored, increases LOD", 'f', arrrgh::Optional, 4);
+    const auto& rotateX          = parser.add<float>("fractal-rotate-x", "Folds fractals in the x-axis with degrees while generating", 'x', arrrgh::Optional, 0.);
+    const auto& rotateY          = parser.add<float>("fractal-rotate-y", "Folds fractals in the x-axis with degrees while generating", 'y', arrrgh::Optional, 0.);
+    const auto& rotateZ          = parser.add<float>("fractal-rotate-z", "Folds fractals in the x-axis with degrees while generating", 'z', arrrgh::Optional, 0.);
+    const auto& enableTimeOffset = parser.add<bool>("fractal-animate", "Apply rotational offset over time", 't', arrrgh::Optional, false);
+    const auto& period           = parser.add<float>("period", "The frequency and thus distance structures repeat", 'p', arrrgh::Optional, 2.);
 
     // If you want to add more program arguments, define them here,
     // but do not request their value here (they have not been parsed yet at this point).
@@ -94,6 +100,12 @@ int main(int argc, const char* argb[])
     CommandLineOptions options;
     options.enableMusic    = enableMusic.value();
     options.enableAutoplay = enableAutoplay.value();
+    options.mirrorFractal = mirrorFractal.value();
+    options.rotateX = rotateX.value();
+    options.rotateY = rotateX.value();
+    options.rotateZ = rotateX.value();
+    options.enableTimeOffset = enableTimeOffset.value();
+    options.period = period.value();
 
     // Initialise window using GLFW
     GLFWwindow* window = initialise();
