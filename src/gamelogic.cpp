@@ -111,17 +111,32 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     glUniform2fv(1,1, glm::value_ptr(resolution));
 
     glUniform1i(4,options.mirrorFractal);
-    glUniform1f(5,options.rotateX);
-    glUniform1f(6,options.rotateY);
-    glUniform1f(7,options.rotateZ);
-    glUniform1i(9,options.period);
 
+    glm::vec3 rotationOffsets = glm::vec3(options.rotateX, options.rotateY, options.rotateZ);
+    glUniform3fv(5,1, glm::value_ptr(rotationOffsets));
+    glUniform1f(6,options.period);
+    if(options.disableNoise)
+    {
+        glUniform1i(7,0);
+    }
+    else 
+    {
+        glUniform1i(7,1);
+    }
     if (options.enableTimeOffset){
         glUniform1i(8, 1);
     }
     else 
     {
-        glUniform1f(8, 0);
+        glUniform1i(8, 0);
+    }
+    if (options.still)
+    {
+        glUniform1i(9, 1);
+    }
+    else 
+    {
+        glUniform1i(9, 0);
     }
 
     rootNode = createSceneNode();
@@ -225,9 +240,17 @@ void updateFrame(GLFWwindow* window) {
             KeyFrameAction currentDestination = keyFrameDirections.at(currentKeyFrame + 1);
         }
     }
-
+    glm::vec3 cameraPosition = glm::vec3(0.);
+    if (options.still)
+    {
+        cameraPosition = glm::vec3(options.period/2., .5, options.period+18);   
+    }
+    else
+    {
+        cameraPosition = glm::vec3(options.period/2., 4., -10.f+2*gameElapsedTime);
+    }
     // Send camera updates to fragment shader
-    glm::vec3 cameraPosition = glm::vec3(0., 4., -6.f+2*gameElapsedTime);
+
     glUniform3fv(3,1, glm::value_ptr(cameraPosition));
 }
 

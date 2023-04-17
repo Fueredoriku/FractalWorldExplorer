@@ -15,11 +15,12 @@ const int         windowSamples   = 4;
 
 struct CommandLineOptions {
     bool enableMusic;
-    bool enableAutoplay;
+    bool still;
     int mirrorFractal;
     float rotateX;
     float rotateY;
     float rotateZ;
     bool enableTimeOffset;
     float period;
+    bool disableNoise;
 };

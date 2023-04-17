@@ -10,8 +10,6 @@ struct LightSource {
 };
 
 uniform layout(location = 3) vec3 camera;
-//uniform layout(location = 10) int numLights;
-//uniform LightSource lights[4];
 
 out vec4 color;
 
@@ -20,8 +18,8 @@ const float maxDist = 50.;
 
 // *Shading*
 // Ambient
-//vec3 materialColor = vec3(clamp(0.4+cos(iTime), 0.31, 1.),0.4,clamp(0.4+sin(iTime),0.4,0.7));
 vec3 materialColor = vec3(0.6,0.2,0.1);
+vec3 glowColor = vec3(0.3,0.,0.);
 
 // Specular
 float shinyness = 16.;
@@ -41,17 +39,15 @@ uniform layout(location = 4) int mirrors;
 // Rotates the entire object
 vec3 rotationOffsetDegrees = vec3(0., 0., 0.);
 // Rotates the fractal itself in each fold around the given axis
-uniform layout(location = 5) float degX;
-uniform layout(location = 6) float degY;
-uniform layout(location = 7) float degZ;
+uniform layout(location = 5) vec3 rotationOffsets;
+uniform layout(location = 6) float period;
+uniform layout(location = 7) int disableNoise;
 uniform layout(location = 8) int enableTimeOffset;
-uniform layout(location = 9) float periodL;
-float period = 2; 
-vec3 fractalFoldingRotationOffset = vec3(degX, degY, degZ);
+uniform layout(location = 9) int still;
 
-// TODO: noise for heigth
+//Manual rotation of the entire fractal object
+vec3 fractalFoldingRotationOffset = vec3(rotationOffsets.x, rotationOffsets.y, rotationOffsets.z);
 
-// TODO: noise for rotations
 
 //////////////////////////////////////////////
 // *Region* 
@@ -110,21 +106,17 @@ float perlinNoice(float value)
 // Signed Distance Functions
 //////////////////////////////////////////////
 
-// Source: https://iquilezles.org/articles/distfunctions/
-float sdPlane( vec3 position, vec4 normalFromOrigin)
-{
-  // n must be normalized
-  return dot(position,normalFromOrigin.xyz) + normalFromOrigin.w;
-}  
-
+// Modified from source: https://iquilezles.org/articles/distfunctions/
 float signedDistancePlane(vec3 position)
 {
-	return position.y + mod(position.x,2.)*mod(position.z,2.);
+	return position.y + mod(position.x,period)*mod(position.z,period);
 }
 
-
+// Menger sponge by mirroring an object, then folding the object inside a larger one X amount of times. 
+// By rotating one or more axies while folding, one can thus achieve a Kaleidoscopic IFS structure. 
 float signedDistanceSponge(vec3 position) {
-    float randomFactor = deterministicRandom(floor(position.xz/2.));
+    float randomFactor = deterministicRandom(floor(position.xz/period));
+    randomFactor *= disableNoise;
     // Repeat points on the XY-plane
     position = vec3(mod(position.x,period)-(period/2.), position.y+randomFactor, mod(position.z,period)-(period/2.));
     // Rotate the entire object
@@ -164,19 +156,21 @@ float signedDistanceSponge(vec3 position) {
         dist = dot(position, normalize(vec3(0.15, -1., 0))) + 0.5;
         position -= 2.*normalize(vec3(0.,-1.,0.))*min(0., dist);
         
+        // Noise based rotational offset
+        position *= rotateX(randomFactor) * rotateY(0.) * rotateY(0.);
         // Gives the fractal a rotational offset for each folding, achieving a "Kaleidoscopic IFS" effect
         if (enableTimeOffset != 0)
         {
-            position *= rotateX(fractalFoldingRotationOffset.x*iTime*0.1) * rotateY(fractalFoldingRotationOffset.y*iTime*0.1) * rotateY(fractalFoldingRotationOffset.z*iTime*0.1);
+            position *= rotateX(fractalFoldingRotationOffset.x*iTime*0.1) * rotateY(fractalFoldingRotationOffset.y*iTime*0.1) * rotateZ(fractalFoldingRotationOffset.z*iTime*0.1);
         }
         else 
         {
-            position *= rotateX(fractalFoldingRotationOffset.x) * rotateY(fractalFoldingRotationOffset.y) * rotateY(fractalFoldingRotationOffset.z);
+            position *= rotateX(fractalFoldingRotationOffset.x) * rotateY(fractalFoldingRotationOffset.y) * rotateZ(fractalFoldingRotationOffset.z);
         }
-        // Noise based rotational offset
-        position *= rotateX(randomFactor) * rotateY(0.) * rotateY(0.);
    
     }
+    float colorSize = sin(position.z*3.+position.x*6.)*0.5+0.5;;
+    materialColor = mix(vec3(0.,0.63,1.),vec3(0.,1.,0.56),colorSize)*0.5+0.05;
 
     float d = length(max(abs(position) - size, 0.));
     
@@ -223,9 +217,9 @@ vec3 normal(vec3 position)
 //////////////////////////////////////////////
 // Shadow
 //////////////////////////////////////////////
-// Phong
-//////////////////////////////////////////////
 // VFX
+//////////////////////////////////////////////
+// Phong
 //////////////////////////////////////////////
 
 // Shadow 
@@ -276,45 +270,7 @@ vec3 ambientOcclusion(vec3 position, vec3 normalDirection)
     return ambience.xyz; 
 }
 
-
-float sunDirection(vec3 position, vec3 normal, vec3 rayDirection)
-{
-    vec3  lightPosition = normalize( vec3(-0.5, 15., -0.6));
-    vec3  hal = normalize( lightPosition-rayDirection );
-    float dif = clamp( dot(normal, lightPosition ), 0., 1.0 );
-    return dif;
-}
-
-// Phong
-
-float diffuseIntensity(vec3 position, vec3 normal, vec3 lightDirection)
-{
-    //Return the diffuseIntensity for the given position, normal and lightsource:
-    return max(0.0, dot(normal, lightDirection));
-    //return max(0.0, dot(normal, lightDir));
-}
-
-float specularIntensity(vec3 position, vec3 normal, vec3 lightDirection)
-{
-    //return pow(max(dot(normalize(lightDir), normal)*shadow(position, lightDir), 0.5), shinyness);
-    return pow(max(dot(normalize(lightDirection), normal), 0.5), shinyness);
-}
-
-vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition)
-{
-    vec3 lightDirection = normalize(position - lightPosition);
-    vec3 color = ambientColor*ambientOcclusion(position, normal)*1.2;
-    //float gradient = calcGlobalLighting(position, normal, rayDirection)*shadow(position, lightDirection);
-    color += specularIntensity(normalize(position), normalize(normal), lightDirection)+ ambientColor*(diffuseIntensity(normalize(position), normalize(normal), lightDirection));
-    //color += specularIntensity(position, normal, sunDirection)+ ambientColor*(diffuseIntensity(position, normal, sunDirection));
-    return clamp(color, 0.,1.);
-
-    //return ambientColor*(diffuseIntensity(position, normal, lightPosition)+specularIntensity(position, normal, lightPosition));
-}
-
-// VFX
-
-// Fog (Applies fog to given caler based on distance from camera)
+// Fog (Applies fog to given color based on distance from camera)
 vec3 applyFog(vec3 color, vec3 position, vec3 cameraPosition)
 {
     float dist = distance(position, cameraPosition);
@@ -323,6 +279,31 @@ vec3 applyFog(vec3 color, vec3 position, vec3 cameraPosition)
         color = mix(color, fogColor, exp(-0.2*(dist-fogDistance)/(maxDist-max(fogDistance,0.001))));
     }
     return color; 
+}
+
+// Phong
+
+float diffuseIntensity(vec3 position, vec3 normal, vec3 lightDirection)
+{
+    //Return the diffuseIntensity for the given position, normal and lightsource:
+    return max(0.0, dot(normal, lightDirection));
+}
+
+float specularIntensity(vec3 position, vec3 normal, vec3 lightDirection)
+{
+    return pow(max(dot(normalize(lightDirection), normal), 0.5), shinyness);
+}
+
+vec3 phong(vec3 position, vec3 normal, vec3 ambientColor, vec3 lightPosition)
+{
+    vec3 lightDirection = normalize(position - lightPosition);
+    vec3 color = (ambientColor + glowColor)*ambientOcclusion(position, normal)*1.2;
+    color += specularIntensity(normalize(position), normalize(normal)*0.2, lightDirection)+ ambientColor*(diffuseIntensity(normalize(position), normalize(normal), lightDirection));
+    
+    // New lightsources can simply be added to color like the form under:
+    //color += specularIntensity(position, normal, newLightDir)+ ambientColor*(diffuseIntensity(position, normal, newLightDir));
+    
+    return clamp(color, 0.,1.);
 }
 
 
@@ -337,15 +318,22 @@ vec3 march(vec3 camPos, vec3 camDir)
     float d = 0.;
     vec3 currentPos = camPos;
     int steps = 0;
-    
+    glowColor = vec3(0.);
     do 
     {
         d = map(currentPos);
         currentPos += d*camDir;
         steps++;
 
-    } while (steps < 200 && d > 0.001 && distance(camPos, currentPos) < maxDist);
+        if (d < 0.01){
+            glowColor = mix(materialColor*0.1, materialColor*0.9, d*100);
+        }
 
+    } while (steps < 200 && d > 0.001 && distance(camPos, currentPos) < maxDist);
+        if (d < 0.001)
+        {
+            glowColor = vec3(0.);
+        }
     
     return currentPos;
 }
@@ -367,6 +355,11 @@ void main()
     vec3 camDir = vec3(uv, 1.);
     camDir *= rotateX(0.1);
     vec3 lightPosition = vec3(0., -5.0, 5.0+2.*iTime);
+    if (still == 1)
+    {
+        lightPosition.z = period*2+18;
+    }
+
     vec3 position = march(camPos, camDir);
     
     // TODO: pass this value from marcher instead?
@@ -374,13 +367,20 @@ void main()
     // Background
     if (distance(position, camPos) > 50.)
     {
-        color = vec4(fogColor, 1.);
+        if (glowColor == vec3(0.))
+        {
+            color = vec4(fogColor, 1.);
+        }
+        else 
+        {
+            color = vec4(glowColor, 1.);
+        }
+        
 
         //keep the fog low, lerp to sky
         if (uv.y > 0.2)
         {
             color = mix(vec4(fogColor, 1.), vec4(0.6,0.2,0.75, 1.), (uv.y-0.2)/(1.-0.2) );
-            //lerp to sky?
         }
         //color = vec4(0.6,0.2,0.75+uv.y, 1.);
         return;
