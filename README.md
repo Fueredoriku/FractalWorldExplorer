@@ -13,17 +13,17 @@ One can as an example look at a fractal that shifts over time, or look at variou
     - "--enable-music" or "-m", Plays background music while the game is playing
     - "--still" or "-s", Disables travel along terrain, and instead focuses on a single object
     - "--fractal-mirror" or "-f", Increases the amount of times fractal is folded, which increases the detail/complexity of the fractal
-    - "--fractal-rotate-x" or "x", Folds fractals in the x-axis with float degrees while generating
-    - "--fractal-rotate-y" or "y", Folds fractals in the y-axis with float degrees while generating
-    - "--fractal-rotate-z" or "z", Folds fractals in the z-axis with float degrees while generating
-    - "--fractal-animate" or "t", Apply rotational offset over time, animating the fractals
-    - "--period" or "p", The frequency and thus distance objects repeat, a period of 2 is completly even
-    - "--noise-disable" or "n", Disables both height and fractal rotation noise
+    - "--fractal-rotate-x" or "-x", Folds fractals in the x-axis with float degrees while generating
+    - "--fractal-rotate-y" or "-y", Folds fractals in the y-axis with float degrees while generating
+    - "--fractal-rotate-z" or "-z", Folds fractals in the z-axis with float degrees while generating
+    - "--fractal-animate" or "-t", Apply rotational offset over time, animating the fractals
+    - "--period" or "-p", The frequency and thus distance objects repeat, a period of 2 is completly even
+    - "--noise-disable" or "-n", Disables both height and fractal rotation noise
 
 ### Examples of inputs
 Varied box terrain:
 
-no Input
+no Input parameters
 
 Tesseract-like folding in an even plane:
 
@@ -33,9 +33,20 @@ Forest roof:
 
 -x=0.5 -z=0.9
 
-Close up, standing still looking at animated high resolution fractal:
+Close up, standing still looking at animated fractal:
 
--z=2. -m=10 -p=45 -n -t -s
+-z=2. -f=4 -p=45 -n -t -s
+
+Same fractal as above, double the resolution:
+
+-z=2. -f=8 -p=45 -n -t -s
+
+Very varied animated fractal:
+
+-x=2.2 -y=7.3 -z=1.5 -p=45 -t -s
+
+
+
  
 
 

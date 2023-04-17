@@ -326,7 +326,7 @@ vec3 march(vec3 camPos, vec3 camDir)
         steps++;
 
         if (d < 0.01){
-            glowColor = mix(materialColor*0.1, materialColor*0.9, d*100);
+            //glowColor = mix(materialColor*0.1, materialColor*0.9, d*100);
         }
 
     } while (steps < 200 && d > 0.001 && distance(camPos, currentPos) < maxDist);
@@ -373,7 +373,7 @@ void main()
         }
         else 
         {
-            color = vec4(glowColor, 1.);
+            //color = vec4(glowColor, 1.);
         }
         
 
