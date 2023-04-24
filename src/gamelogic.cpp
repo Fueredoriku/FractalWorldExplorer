@@ -139,6 +139,15 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
         glUniform1i(9, 0);
     }
 
+    if (options.demo)
+    {
+        glUniform1i(10, 1);
+    }
+    else 
+    {
+        glUniform1i(10, 0);
+    }
+
     rootNode = createSceneNode();
 }
 

@@ -23,4 +23,5 @@ struct CommandLineOptions {
     bool enableTimeOffset;
     float period;
     bool disableNoise;
+    bool demo;
 };

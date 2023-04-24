@@ -35,15 +35,23 @@ float fogDistance = 40.;
 
 //* Fractal tweakables*
 // How many times to fold the sponge (mirrors geometry, improves fractal "resolution")
-uniform layout(location = 4) int mirrors;
+uniform layout(location = 4) int mirrorsIn;
 // Rotates the entire object
 vec3 rotationOffsetDegrees = vec3(0., 0., 0.);
 // Rotates the fractal itself in each fold around the given axis
 uniform layout(location = 5) vec3 rotationOffsets;
-uniform layout(location = 6) float period;
-uniform layout(location = 7) int disableNoise;
-uniform layout(location = 8) int enableTimeOffset;
-uniform layout(location = 9) int still;
+uniform layout(location = 6) float periodIn;
+uniform layout(location = 7) int disableNoiseIn;
+uniform layout(location = 8) int enableTimeOffsetIn;
+uniform layout(location = 9) int stillIn;
+uniform layout(location = 10) int demo;
+
+
+int mirrors = mirrorsIn;
+float period = periodIn;
+int disableNoise = disableNoiseIn;
+int enableTimeOffset = enableTimeOffsetIn;
+int still = stillIn;
 
 //Manual rotation of the entire fractal object
 vec3 fractalFoldingRotationOffset = vec3(rotationOffsets.x, rotationOffsets.y, rotationOffsets.z);
@@ -349,10 +357,59 @@ void main()
     // Normalized pixel coordinates (from 0 to 1) with correct aspect ratio
     vec2 uv = (gl_FragCoord.xy-.5*iResolution.xy)/iResolution.y;
 
+    vec3 camPos = camera;
+
+    // Demo-mode that lerps between different possible parameters
+    if (demo == 1)
+    {
+        if (sin(iTime*0.1) > 0 && cos(iTime*0.1) > 0)
+        {
+            // Panorama example
+            still = 0;
+            period = 2.65;
+            disableNoise = 1;
+            enableTimeOffset = 0;
+            fractalFoldingRotationOffset = vec3(0);
+            mirrors = 4;
+        }
+        if (sin(iTime*0.1) > 0. && cos(iTime*0.1) < 0.) 
+        {
+            // Even Folding
+            fractalFoldingRotationOffset.y = 2.;
+            period = 2.2;
+            disableNoise = 0;
+            mirrors = 4;
+            enableTimeOffset = 1;
+        }
+        if (sin(iTime*0.1) < 0. && cos(iTime*0.1) < 0.)
+        {
+            // Animated tunnel
+            fractalFoldingRotationOffset.xz = vec2(0.);
+            fractalFoldingRotationOffset.y = 5.;
+            enableTimeOffset = 1;
+            period = 4.2;
+            disableNoise = 0;
+            still = 1;
+            mirrors = 6;
+            camPos = vec3(period/2., .5, period+18);
+        }
+        if (sin(iTime*0.1) < 0. && cos(iTime*0.1) > 0.) 
+        {
+            // Animated single fractal
+            // -p=49 -f=5 -z=1 -y=6 -x=-1 -t -n -s
+            period = 49.;
+            mirrors = 5;
+            fractalFoldingRotationOffset.xz = vec2(1.);
+            fractalFoldingRotationOffset.y= 6.;
+            still = 1;
+            disableNoise = 1;
+            enableTimeOffset = 1;
+            camPos = vec3(period/2., .5, period+18);
+        }
+    }
+
     // Time varying pixel color
     //vec3 col = 0.5 + 0.5*cos(iTime+uv.xyx+vec3(0,2,4));
-
-    vec3 camPos = camera;
     vec3 camDir = vec3(uv, 1.);
     camDir *= rotateX(0.1);
     vec3 lightPosition = vec3(0., -5.0, 5.0+2.*iTime);
