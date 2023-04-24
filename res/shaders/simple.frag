@@ -132,10 +132,10 @@ float signedDistanceSponge(vec3 position) {
         scaleAccumulated *= 3.8;
         position *= 4.0;
         
-        // Makes a cube and mirrors it
+        // Mirrors a cube!
         float dist = dot(position+1., normalize(vec3(1., 0., 0)));
         position -= 2.*normalize(vec3(1.,0.05,0.))*min(0., dist);
-
+    
         dist = dot(position+1., normalize(vec3(0.05, -1., 0))) + 2.;
         position -= 2.*normalize(vec3(0.,-1.,0.))*min(0., dist);
 
@@ -156,6 +156,7 @@ float signedDistanceSponge(vec3 position) {
         dist = dot(position, normalize(vec3(0.15, -1., 0))) + 0.5;
         position -= 2.*normalize(vec3(0.,-1.,0.))*min(0., dist);
         
+    
         // Noise based rotational offset
         position *= rotateX(randomFactor) * rotateY(0.) * rotateY(0.);
         // Gives the fractal a rotational offset for each folding, achieving a "Kaleidoscopic IFS" effect
