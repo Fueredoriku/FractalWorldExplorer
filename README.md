@@ -10,6 +10,7 @@ One can as an example look at a fractal that shifts over time, or look at variou
 	"./glowbox --example-input" or "./glowbox -e"
 
 	- "--help" or "-h", Shows help message.
+    - "--demo" or "-d", Toggles between example inputs and camera angles to showcase functionality
     - "--enable-music" or "-m", Plays background music while the game is playing
     - "--still" or "-s", Disables travel along terrain, and instead focuses on a single object
     - "--fractal-mirror" or "-f", Increases the amount of times fractal is folded, which increases the detail/complexity of the fractal

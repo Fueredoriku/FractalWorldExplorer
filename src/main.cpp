@@ -77,7 +77,7 @@ int main(int argc, const char* argb[])
     const auto& enableTimeOffset = parser.add<bool>("fractal-animate", "Apply rotational offset over time", 't', arrrgh::Optional, false);
     const auto& period           = parser.add<float>("period", "The frequency and thus distance structures repeat", 'p', arrrgh::Optional, 2.);
     const auto& disableNoise     = parser.add<bool>("noise-disable", "Disable both heigth and fractal rotation noise", 'n', arrrgh::Optional, false);
-    const auto& demo             = parser.add<bool>("demo", "Lerps between inputs and camera-angles to showcase functionality", 'd', arrrgh::Optional, false);
+    const auto& demo             = parser.add<bool>("demo", "Toggles between inputs and camera-angles to showcase functionality", 'd', arrrgh::Optional, false);
     
 
     // If you want to add more program arguments, define them here,
